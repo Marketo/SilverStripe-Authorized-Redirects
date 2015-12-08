@@ -19,7 +19,7 @@
         {
             "name": "Nathan J. Brauer",
             "email": "nathan@marketera.com"
-        },
+        }
     ],
 
     "minimum-stability": "dev"
