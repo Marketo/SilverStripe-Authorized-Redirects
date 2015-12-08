@@ -1,0 +1,26 @@
+{
+    "name": "marketo/silverstripe-authorized-redirects",
+    "description": "This SilverStripe module validates email addresses and creates a unique link for each user-agent/cookie. This unique link then redirects to another webpage which blocks non-referring traffic.",
+
+    "type": "silverstripe-module",
+
+    "require": {
+        "silverstripe/cms": "3.*",
+        "composer/installers": "*"
+    },
+
+    "license": "BSD-3-Clause",
+
+    "authors": [
+        {
+            "name": "Marcus Nyeholt",
+            "email": "marcus@silverstripe.com.au"
+        },
+        {
+            "name": "Nathan J. Brauer",
+            "email": "nathan@marketera.com"
+        },
+    ],
+
+    "minimum-stability": "dev"
+}
