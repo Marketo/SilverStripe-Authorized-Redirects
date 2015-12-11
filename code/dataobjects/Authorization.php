@@ -2,6 +2,17 @@
 
 class Authorization extends DataObject {
 
+	/**
+	 * Helpers...
+	 */
+	const EMAIL_EMPTY			= 1;
+	const EMAIL_MISSING			= 2;
+	const EMAIL_NOT_ALLOWED		= 4;
+	const PAGE_INVALID			= 8;
+	const ACCESS_CODE_MISSING	= 16;
+	const PAGE_HAS_NO_EMAIL		= 32;
+	const DEVICE_WRONG			= 64;
+
 	private static $db = array(
 		'Email'			=> 'Varchar(256)', // See RFC 5321, Section 4.5.3.1.3.
 		'ClientInfo'	=> 'Varchar(255)',
@@ -13,10 +24,6 @@ class Authorization extends DataObject {
 
 	private static $has_one = array(
 		'Page' => 'AuthorizedPage'
-	);
-
-
-	private static $has_many = array(
 	);
 
 	static $default_sort = 'Email ASC';
@@ -38,8 +45,14 @@ class Authorization extends DataObject {
 	}
 
 	function AbsoluteLink() {
-		if (!$this->Page()) return '';
-		return str_replace('https://','http://',$this->Page()->AbsoluteLink()).'?Email='.rawurlencode($this->Email).'&AccessCode='.$this->AccessCode;
+		if (!$this->Page()) {
+
+			return '';
+		}
+
+		return str_replace('https://', 'http://',$this->Page()->AbsoluteLink())
+			. '?Email=' . rawurlencode($this->Email)
+			. '&AccessCode=' . $this->AccessCode;
 	}
 
 	function onBeforeWrite() {
@@ -51,13 +64,17 @@ class Authorization extends DataObject {
 		}
 
 		if (!$this->AccessCode) {
-			$this->AccessCode = MarketoUtilities::GenerateStrongPassword(9,1,'ud');
+			//@TODO MarketoUtilities isn't in this module
+			//MarketoUtilities::GenerateStrongPassword(9,1,'ud');
+			$random = new RandomGenerator();
+			$this->AccessCode = substr($random->randomToken(), 0, 10);
 		}
 
 		return parent::onBeforeWrite();
 	}
 
 	public function getMenuTitle() {
+
 		return "$this->Email ($this->AccessCode on $this->ClientInfo)";
 	}
 
@@ -76,12 +93,16 @@ class Authorization extends DataObject {
 	}
 
 	public function EmailAuthorization() {
-		if (!$this->Page()) return false;
-		if (!$this->Email) return false;
-		if (!$this->AccessCode) return false;
+
+		if (!$this->Page() || !$this->Email || !$this->AccessCode) {
+			//Exit if this is an incomplete record
+			return false;
+		}
 
 		$Link = $this->AbsoluteLink();
 
+		//@TODO move this to a template
+		//@TODO Clean up the Client Info output as it's currently pretty ugly
 		$body = <<<HTML
 <h1>Here's your access link!</h1>
 <p>The link below was specially baked just for you.</p>
@@ -102,22 +123,14 @@ HTML;
 		$email->send();
 
 		$this->EmailSent = (string)SS_Datetime::now();
+
 		return true;
 	}
 
-
-
-	/**
-	 * Helpers...
-	 */
-
-	const EmailEmpty		= 1;
-	const EmailMissing		= 2;
-	const EmailNotAllowed	= 4;
-	const PageInvalid		= 8;
-	const AccessCodeMissing	= 16;
-	const PageHasNoEmail	= 32;
-	const DeviceWrong		= 64;
+	public function generateOneTime() {
+		$random = new RandomGenerator();
+		$this->OneTimeCode = substr($random->randomToken(), 0, 10);
+	}
 
 	/**
 	 * @param AuthorizedPage $Page
@@ -127,7 +140,14 @@ HTML;
 	 * @param string $ClientInfo
 	 * @return int
 	 */
-	static public function AuthorizationErrors(AuthorizedPage $Page,$Email,$AccessCode,$ClientKey=null,$ClientInfo=null) {
+	static public function AuthorizationErrors(
+		AuthorizedPage $Page,
+		$Email,
+		$AccessCode,
+		$ClientKey = null,
+		$ClientInfo = null
+	) {
+
 		$ErrorCode	= 0;
 		$ClientKey	= $ClientKey ? $ClientKey : Authorization::generateClientKey();
 		$ClientInfo	= $ClientInfo ? $ClientInfo : Authorization::generateClientInfo();
@@ -143,24 +163,19 @@ HTML;
 		));
 
 		if (!$Email) {
-			$ErrorCode |= static::EmailEmpty;
+			$ErrorCode |= static::EMAIL_EMPTY;
 		} else if (!$Auths->filter('Email',$Email)->count()) {
-			$ErrorCode |= static::EmailMissing;
+			$ErrorCode |= static::EMAIL_MISSING;
 		}
 
 		if (!$Page->ID) {
-			$ErrorCode |= static::PageInvalid;
-		} else {
-			if (
-				!($ErrorCode & static::EmailEmpty) &&
-				!$Page->IsAllowedEmail($Email)
-			) {
-				$ErrorCode |= static::EmailNotAllowed;
-			}
+			$ErrorCode |= static::PAGE_INVALID;
+		} elseif (!($ErrorCode & static::EMAIL_EMPTY) && !$Page->IsAllowedEmail($Email)) {
+			$ErrorCode |= static::EMAIL_NOT_ALLOWED;
 		}
 
 		if (!$AccessCode) {
-			$ErrorCode |= static::AccessCodeMissing;
+			$ErrorCode |= static::ACCESS_CODE_MISSING;
 		}
 
 		/**
@@ -170,13 +185,22 @@ HTML;
 		 * has no authorizations yet (or both).
 		 */
 		if ($ErrorCode) {
+
 			return $ErrorCode;
 		}
 
 		if (!$Auths->filter(array('PageID'=>$Page->ID,'Email'=>$Email))->count()) {
-			$ErrorCode |= static::PageHasNoEmail;
-		} else if (!$Auths->filter(array('PageID'=>$Page->ID,'Email'=>$Email,'AccessCode'=>$AccessCode,'ClientKey' => $ClientKey,'ClientInfo' => $ClientInfo))->count()) {
-			$ErrorCode |= static::DeviceWrong;
+			$ErrorCode |= static::PAGE_HAS_NO_EMAIL;
+		} elseif (
+			!$Auths->filter(array(
+				'PageID'=>$Page->ID,
+				'Email'=>$Email,
+				'AccessCode'=>$AccessCode,
+				'ClientKey' => $ClientKey,
+				'ClientInfo' => $ClientInfo))
+			->count()
+		) {
+			$ErrorCode |= static::DEVICE_WRONG;
 		}
 
 		return $ErrorCode;
@@ -190,22 +214,20 @@ HTML;
 	 * @param string $ClientInfo
 	 * @return Authorization|boolean
 	 */
-	static public function Fetch(AuthorizedPage $Page,$Email,$AccessCode,$ClientKey=null,$ClientInfo=null) {
-		if (!$Page || !$Page->ID) return false;
-		$ClientKey	= $ClientKey ? $ClientKey : Authorization::generateClientKey();
-		$ClientInfo	= $ClientInfo ? $ClientInfo : Authorization::generateClientInfo();
-		$Email		= strtolower($Email);
-		$AccessCode	= strtoupper($AccessCode);
+	static public function Fetch(AuthorizedPage $Page, $Email, $AccessCode, $ClientKey=null, $ClientInfo=null) {
 
-		if (!$Page->IsAllowedEmail($Email)) return false;
+		if (!$Page || !$Page->ID || !$Page->IsAllowedEmail(strtolower($Email))) {
+
+			return false;
+		}
 
 		return Authorization::get()->filter(
 			array(
 				'PageID'		=> $Page->ID,
-				'Email'			=> $Email,
-				'AccessCode'	=> $AccessCode,
-				'ClientKey'		=> $ClientKey,
-				'ClientInfo'	=> $ClientInfo,
+				'Email'			=> strtolower($Email),
+				'AccessCode'	=> strtoupper($AccessCode),
+				'ClientKey'		=> $ClientKey ? $ClientKey : Authorization::generateClientKey(),
+				'ClientInfo'	=> $ClientInfo ? $ClientInfo : Authorization::generateClientInfo(),
 			)
 		)->First();
 	}
@@ -234,21 +256,26 @@ HTML;
 			}
 			// Set cookie every time (even when it's already set).
 			// This allows them 14 days of pure inactivity before the token resets.
-			Cookie::set('a_client',$client,14,'/','.marketo.com');
-			return $client;
+			//@TODO improve the setting of this and add some config options for domain and security
+			Cookie::set('a_client',$client,14,'/');
+		} else {
+			$client = sha1(
+				$_SERVER['HTTP_ACCEPT'] . '|' .
+				$_SERVER['HTTP_USER_AGENT'] . '|' .
+				$_SERVER['HTTP_ACCEPT_ENCODING'] . '|' .
+				$_SERVER['HTTP_ACCEPT_LANGUAGE']
+			);
 		}
-		return sha1(
-			$_SERVER['HTTP_ACCEPT'] . '|' .
-			$_SERVER['HTTP_USER_AGENT'] . '|' .
-			$_SERVER['HTTP_ACCEPT_ENCODING'] . '|' .
-			$_SERVER['HTTP_ACCEPT_LANGUAGE']
-		);
+
+		return $client;
 	}
 
 	static public function generateClientInfo() {
 		if (isset($_SERVER['HTTP_USER_AGENT'])) {
+
 			return $_SERVER['HTTP_USER_AGENT'];
 		} else {
+
 			return 'Empty User-agent';
 		}
 	}
