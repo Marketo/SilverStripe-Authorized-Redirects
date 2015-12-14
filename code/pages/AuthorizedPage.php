@@ -52,7 +52,9 @@ class AuthorizedPage_Controller extends Page_Controller {
 
 	private static $allowed_actions = array(
 		'index',
-		'new_authorization'
+		'new_authorization',
+		'validate' => 'validateOneTimeCode',
+		'validateOneTimeCode'
 	);
 
 	//@TODO template and translation file
@@ -102,8 +104,6 @@ class AuthorizedPage_Controller extends Page_Controller {
 			$redirect = self::join_links($this->data()->RedirectURL, '?ott=' . $this->Authorization->OneTimeCode);
 
 			return '<script>window.location="' . Convert::raw2js($redirect) . '"</script>';
-			// This method does not pass on the referral URL when clicking from an email
-			//return $this->redirect($this->data()->RedirectURL);
 		}
 
 		return $this->renderWith(array($this->data()->ClassName,'Page'));
@@ -143,6 +143,28 @@ class AuthorizedPage_Controller extends Page_Controller {
 		return $this->redirect($this->data()->AbsoluteLink().'?Email='.rawurlencode($_POST['Email']).'&EmailSent');
 	}
 
+	/**
+	 * Validates the OneTimeCode against Authorization.
+	 * Valid requests need tobe sent as POST with ott=OneTimeCode
+	 * @return JSON
+	 */
+	public function validateOneTimeCode() {
+		
+		$return = array('valid' => false);
+		
+		if($this->request->postVar('ott')) {
+			if ($ottcheck = Authorization::get()->filter('OneTimeCode', $this->request->postVar('ott'))->last()) {
+				$return['valid'] = true;
+				//As this token as been found we'll remove it and write the Authorization.
+				//@TODO potentially add a log of this occur so use cna be tracked?
+				$ottcheck->OneTimeCode = null;
+				$ottcheck->write();
+			}
+		}
+		
+		return $this->renderWith('json', array('json' => json_encode($return)));
+	}
+	
 	/**
 	 * @return bool|Authorization
 	 */
