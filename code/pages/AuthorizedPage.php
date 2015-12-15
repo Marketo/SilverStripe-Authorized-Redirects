@@ -5,6 +5,8 @@
  */
 class AuthorizedPage extends Page {
 
+	private $Messages;
+
 	private static $db = array(
 		'AllowedEmailAddresses' => 'Text',
 		'RedirectURL' => 'Varchar(255)',
@@ -42,13 +44,28 @@ class AuthorizedPage extends Page {
 		return in_array(strtolower($Email),$Emails);
 	}
 
+	public function addMessage($message, $type) {
+		if(!is_a($this->Messages, 'ArrayList')) {
+			$this->Messages = ArrayList::create();
+		}
+		$this->Messages->add(
+			ArrayData::create(array(
+				'Message' => $message,
+				'Type' => $type
+			))
+		);
+	}
+
+	public function getMessages() {
+		return $this->Messages;
+	}
 }
 
 class AuthorizedPage_Controller extends Page_Controller {
 
 	private $Authorization			= null;
 	private $AuthorizationErrors	= null;
-	private $ErrorMessages			= array();
+
 
 	private static $allowed_actions = array(
 		'index',
@@ -58,42 +75,39 @@ class AuthorizedPage_Controller extends Page_Controller {
 		'validateOneTimeCode'
 	);
 
-	//@TODO template and translation file
 	function index() {
 
 		if (!$this->Authorization($this->request->getVar('Email'),$this->request->getVar('AccessCode'))) {
 			$Errors = $this->AuthorizationErrors($this->request->getVar('Email'),$this->request->getVar('AccessCode'));
-			$ShowErrorCode = '<small style="color:#999;font-weight:bold;">Error '.$Errors.':</small>';
 
 			if ($Errors & Authorization::EMAIL_EMPTY) {
 				// Most likely the user is a new visitor to the page
-			} else if ($this->request->getVar('EmailSent')) {
+				$this->data()->addMessage('Please enter your email address. An access code will be emailed to you to verify your identity.', 'error');
+			} else if ($this->request->getVar('EmailSent') !== null) {
 				if ($Errors & Authorization::EMAIL_NOT_ALLOWED) {
-					$this->ErrorMessages[] = '<p style="color:red;font-weight:bold;">This email address is not allowed access to this page.</p>';
+					$this->data()->addMessage('This email address is not allowed access to this page.', 'error');
 				} else {
-					$this->ErrorMessages[] = '<p style="color:blue;font-weight:bold;">Please check your email for your access link.</p>';
+					$this->data()->addMessage('Please check your email for your access link.', 'success');
 				}
 			} else {
 				if ($Errors & Authorization::PAGE_INVALID) {
-					$this->ErrorMessages[] = $ShowErrorCode;
-					$this->ErrorMessages[] = '<p style="color:red;font-weight:bold;">Internal Error: The Page doesn\'t exist.</p>';
+					//$this->data()->addMessage($ShowErrorCode, 'error');
+					$this->data()->addMessage('Internal Error: The Page doesn\'t exist.', 'error');
 				} else if ($Errors & Authorization::EMAIL_NOT_ALLOWED) {
-					$this->ErrorMessages[] = '<p style="color:red;font-weight:bold;">This email address is not allowed access to this page.</p>';
+					$this->data()->addMessage('This email address is not allowed access to this page.', 'error');
 				} else if ($Errors & Authorization::PAGE_HAS_NO_EMAIL) {
-					$this->ErrorMessages[] = '<p>Welcome back!</p>';
+					$this->data()->addMessage('<p>Welcome back!', 'error');
 				} else if ($Errors & Authorization::DEVICE_WRONG) {
-					$this->ErrorMessages[] = $ShowErrorCode;
-					$this->ErrorMessages[] = '<p style="color:red;font-weight:bold;">Looks like you\'ve registered this email address using a different device or browser.</p>';
-					$this->ErrorMessages[] = '<p style="color:red;font-weight:bold;">You\'ll need to request a new access link for each device.</p>';
+					//$this->data()->addMessage($ShowErrorCode, 'error');
+					$this->data()->addMessage('Looks like you\'ve registered this email address using a different device or browser.', 'error');
+					$this->data()->addMessage('You\'ll need to request a new access link for each device.', 'error');
 				} else if (!($Errors & Authorization::ACCESS_CODE_MISSING)) {
-					$this->ErrorMessages[] = $ShowErrorCode;
-					$this->ErrorMessages[] = '<p style="color:red;font-weight:bold;">This link has expired. Please generate a new link below.</p>';
+					//$this->data()->addMessage($ShowErrorCode, 'error');
+					$this->data()->addMessage('This link has expired. Please generate a new link below.', 'error');
 				}
 			}
 
-			$this->ErrorMessages[] = '<p>Please enter your email address. An access code will be emailed to you to verify your identity.</p>';
-
-			return $this->renderWith(array('Security','Page'));
+			return $this->renderWith(array($this->data()->ClassName,'Page'));
 		}
 
 		if ($this->data()->RedirectURL) {
@@ -180,14 +194,6 @@ class AuthorizedPage_Controller extends Page_Controller {
 		return $this->AuthorizationErrors = Authorization::AuthorizationErrors($this->data(), $email, $accessCode);
 	}
 
-	public function getContent() {
-		if ($this->ErrorMessages) {
-			return implode('',$this->ErrorMessages);
-		} else {
-			return $this->data()->Content;
-		}
-	}
-
 	public function getForm() {
 
 		if (!$this->data()) return false;
@@ -211,14 +217,5 @@ class AuthorizedPage_Controller extends Page_Controller {
 
 			return new Form($this,'getForm',$fields,$actions);
 		}
-	}
-
-	//@TODO what's this do?
-	public function getLayoutToUse() {
-
-		if (!$this->Authorization($this->request->getVar('Email'),$this->request->getVar('AccessCode'))) {
-			return 'Enclosed';
-		}
-		return $this->data()->LayoutToUse;
 	}
 }
