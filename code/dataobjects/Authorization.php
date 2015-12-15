@@ -64,10 +64,12 @@ class Authorization extends DataObject {
 		}
 
 		if (!$this->AccessCode) {
-			//@TODO MarketoUtilities isn't in this module
-			//MarketoUtilities::GenerateStrongPassword(9,1,'ud');
-			$random = new RandomGenerator();
-			$this->AccessCode = substr($random->randomToken(), 0, 10);
+			$randomGen = new RandomGenerator();
+			$random = substr($randomGen->randomToken(), 0, 10);
+
+			$this->extend('extendGenerateAccessCode', $random);
+
+			$this->AccessCode = $random;
 		}
 
 		return parent::onBeforeWrite();
@@ -99,26 +101,13 @@ class Authorization extends DataObject {
 			return false;
 		}
 
-		$Link = $this->AbsoluteLink();
-
-		//@TODO move this to a template
 		//@TODO Clean up the Client Info output as it's currently pretty ugly
-		$body = <<<HTML
-<h1>Here's your access link!</h1>
-<p>The link below was specially baked just for you.</p>
-
-<h3>Valid only on the following device:</h3>
-<p>$this->ClientInfo</p>
-
-<h3>Access link:</h3>
-<p>$Link</p>
-
-<p><strong>IMPORTANT:</strong> This access link will ONLY work on the device you originally requested it from.</p>
-
-<p>Thank you,<br/>
-Marketing Developers</p>
-HTML;
-		$email = new Email('', $this->Email, 'Your Access Code for '.$this->Page()->Title, $body);
+		$email = new Email('', $this->Email, 'Your Access Code for '.$this->Page()->Title);
+		$email->setTemplate('AuthorizationEmail')
+			->populateTemplate(array(
+				'ClientInfo' => $this->ClientInfo,
+				'Link' => $this->AbsoluteLink()
+			));
 		$email->send();
 
 		$this->EmailSent = (string)SS_Datetime::now();
@@ -128,11 +117,11 @@ HTML;
 
 	public function generateOneTime() {
 		$randomGen = new RandomGenerator();
-		$random = $randomGen->randomToken();
+		$random = substr($randomGen->randomToken(), 0, 10);
 
 		$this->extend('extendGenerateOneTime', $random);
 
-		$this->OneTimeCode = substr($random, 0, 10);
+		$this->OneTimeCode = $random;
 	}
 
 	/**
@@ -217,7 +206,7 @@ HTML;
 	 * @param string $ClientInfo
 	 * @return Authorization|boolean
 	 */
-	static public function Fetch(AuthorizedPage $Page, $Email, $AccessCode, $ClientKey=null, $ClientInfo=null) {
+	static public function Fetch(AuthorizedPage $Page, $Email, $AccessCode, $ClientKey = null, $ClientInfo = null) {
 
 		if (!$Page || !$Page->ID || !$Page->IsAllowedEmail(strtolower($Email))) {
 

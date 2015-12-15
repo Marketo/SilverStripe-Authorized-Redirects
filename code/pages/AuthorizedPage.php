@@ -52,6 +52,7 @@ class AuthorizedPage_Controller extends Page_Controller {
 
 	private static $allowed_actions = array(
 		'index',
+		'getForm',
 		'new_authorization',
 		'validate' => 'validateOneTimeCode',
 		'validateOneTimeCode'
@@ -59,14 +60,14 @@ class AuthorizedPage_Controller extends Page_Controller {
 
 	//@TODO template and translation file
 	function index() {
-		//@TODO Remove $_GET calls
-		if (!$this->Authorization($_GET)) {
-			$Errors = $this->AuthorizationErrors($_GET);
+
+		if (!$this->Authorization($this->request->getVar('Email'),$this->request->getVar('AccessCode'))) {
+			$Errors = $this->AuthorizationErrors($this->request->getVar('Email'),$this->request->getVar('AccessCode'));
 			$ShowErrorCode = '<small style="color:#999;font-weight:bold;">Error '.$Errors.':</small>';
 
 			if ($Errors & Authorization::EMAIL_EMPTY) {
 				// Most likely the user is a new visitor to the page
-			} else if (isset($_GET['EmailSent'])) {
+			} else if ($this->request->getVar('EmailSent')) {
 				if ($Errors & Authorization::EMAIL_NOT_ALLOWED) {
 					$this->ErrorMessages[] = '<p style="color:red;font-weight:bold;">This email address is not allowed access to this page.</p>';
 				} else {
@@ -110,37 +111,35 @@ class AuthorizedPage_Controller extends Page_Controller {
 	}
 
 	public function new_authorization() {
-		//@TODO remove use of $_POST
-		if (!isset($_POST) || empty($_POST)) return $this->redirectBack();
-		
-		$Page = $this->data();
-		if (!$Page) return $this->redirectBack();
+		if (empty($this->request->postVars()) || !$this->data()) return $this->redirectBack();
 
 		// We will create an authorization EVEN IF the email is not allowed.
 		// This allows us to see who requested access, even if they're not allowed.
 		// But, we email email them the access code.
 
+		$email = strtolower($this->request->postVar('Email'));
+
 		$Auth = Authorization::get()->filter(array(
-			'PageID'		=> $Page->ID,
-			'Email'			=> $_POST['Email'],
+			'PageID'		=> $this->ID,
+			'Email'			=> $email,
 			'ClientKey'		=> Authorization::generateClientKey(),
 			'ClientInfo'	=> Authorization::generateClientInfo(),
 		))->First();
 
 		if (!$Auth) {
 			$Auth = new Authorization();
-			$Auth->PageID	= $this->data()->ID;
-			$Auth->Email	= strtolower($_POST['Email']);
+			$Auth->PageID	= $this->ID;
+			$Auth->Email	= $email;
 			$Auth->write();
 		}
 
-		if ($Page->IsAllowedEmail($_POST['Email'])) {
+		if ($this->data()->IsAllowedEmail($email)) {
 			$Auth->EmailAuthorization();
 		}
 
 		$Auth->write(); // Write for both so it updates EmailSent time
 
-		return $this->redirect($this->data()->AbsoluteLink().'?Email='.rawurlencode($_POST['Email']).'&EmailSent');
+		return $this->redirect($this->data()->AbsoluteLink().'?Email='.rawurlencode($email).'&EmailSent');
 	}
 
 	/**
@@ -168,18 +167,17 @@ class AuthorizedPage_Controller extends Page_Controller {
 	/**
 	 * @return bool|Authorization
 	 */
-	public function Authorization($Data) {
+	public function Authorization($email, $accessCode) {
 		if (!is_null($this->Authorization)) return $this->Authorization;
-		return $this->Authorization = Authorization::Fetch($this->data(),@$Data['Email'],@$Data['AccessCode']);
+		return $this->Authorization = Authorization::Fetch($this->data(), $email, $accessCode);
 	}
 
 	/**
 	 * @return int
 	 */
-	public function AuthorizationErrors($Data) {
+	public function AuthorizationErrors($email, $accessCode) {
 		if (!is_null($this->AuthorizationErrors)) return $this->AuthorizationErrors;
-		//@TODO fix @ calls
-		return $this->AuthorizationErrors = Authorization::AuthorizationErrors($this->data(),@$Data['Email'],@$Data['AccessCode']);
+		return $this->AuthorizationErrors = Authorization::AuthorizationErrors($this->data(), $email, $accessCode);
 	}
 
 	public function getContent() {
@@ -191,27 +189,34 @@ class AuthorizedPage_Controller extends Page_Controller {
 	}
 
 	public function getForm() {
-		//@TODO fix submit flow here
-		if (!($Page = $this->data())) return false;
-		if (!$this->Authorization($_GET)) {
+
+		if (!$this->data()) return false;
+
+		if (!$this->Authorization($this->request->getVar('Email'),$this->request->getVar('AccessCode'))) {
 			$fields = new FieldList();
-			$fields->add(EmailField::create('Email','Email Address',isset($_REQUEST['Email']) ? strtolower($_REQUEST['Email']) : ''));
+			$fields->add(
+				EmailField::create(
+					'Email',
+					'Email Address',
+					strtolower($this->request->param('Email'))
+				)
+			);
 
 			$actions = new FieldList();
-			if (isset($_GET['EmailSent'])) {
-				$actions->add(FormAction::create('Submit','Re-Email Access Link'));
+			if ($this->request->param('Email')) {
+				$actions->add(FormAction::create('new_authorization','Re-Email Access Link'));
 			} else {
-				$actions->add(FormAction::create('Submit','Email Access Link'));
+				$actions->add(FormAction::create('new_authorization','Email Access Link'));
 			}
 
-			return new Form($this,'new_authorization/',$fields,$actions);
+			return new Form($this,'getForm',$fields,$actions);
 		}
 	}
 
 	//@TODO what's this do?
 	public function getLayoutToUse() {
-		//@TODO fix $_GET
-		if (!$this->Authorization($_GET)) {
+
+		if (!$this->Authorization($this->request->getVar('Email'),$this->request->getVar('AccessCode'))) {
 			return 'Enclosed';
 		}
 		return $this->data()->LayoutToUse;
