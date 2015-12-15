@@ -109,7 +109,7 @@ class AuthorizedPage_Controller extends Page_Controller {
 		return $this->renderWith(array($this->data()->ClassName,'Page'));
 	}
 
-	function new_authorization() {
+	public function new_authorization() {
 		//@TODO remove use of $_POST
 		if (!isset($_POST) || empty($_POST)) return $this->redirectBack();
 		
@@ -168,7 +168,7 @@ class AuthorizedPage_Controller extends Page_Controller {
 	/**
 	 * @return bool|Authorization
 	 */
-	function Authorization($Data) {
+	public function Authorization($Data) {
 		if (!is_null($this->Authorization)) return $this->Authorization;
 		return $this->Authorization = Authorization::Fetch($this->data(),@$Data['Email'],@$Data['AccessCode']);
 	}
@@ -176,13 +176,13 @@ class AuthorizedPage_Controller extends Page_Controller {
 	/**
 	 * @return int
 	 */
-	function AuthorizationErrors($Data) {
+	public function AuthorizationErrors($Data) {
 		if (!is_null($this->AuthorizationErrors)) return $this->AuthorizationErrors;
 		//@TODO fix @ calls
 		return $this->AuthorizationErrors = Authorization::AuthorizationErrors($this->data(),@$Data['Email'],@$Data['AccessCode']);
 	}
 
-	function getContent() {
+	public function getContent() {
 		if ($this->ErrorMessages) {
 			return implode('',$this->ErrorMessages);
 		} else {
@@ -190,7 +190,7 @@ class AuthorizedPage_Controller extends Page_Controller {
 		}
 	}
 
-	function getForm() {
+	public function getForm() {
 		//@TODO fix submit flow here
 		if (!($Page = $this->data())) return false;
 		if (!$this->Authorization($_GET)) {
@@ -209,7 +209,7 @@ class AuthorizedPage_Controller extends Page_Controller {
 	}
 
 	//@TODO what's this do?
-	function getLayoutToUse() {
+	public function getLayoutToUse() {
 		//@TODO fix $_GET
 		if (!$this->Authorization($_GET)) {
 			return 'Enclosed';

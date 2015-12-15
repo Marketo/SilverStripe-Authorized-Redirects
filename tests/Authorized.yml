@@ -1,0 +1,16 @@
+AuthorizedPage:
+  AuthPage1:
+    Title: AuthTest
+    URLSegment: AuthTestURL
+    AllowedEmailAddresses: test@email.com
+    RedirectURL: http://silverstripe.com.au
+ 
+Authorization:
+  Auth1:
+    Email: test@email.com
+    ClientInfo: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.73 Safari/537.36'
+    ClientKey: 7737fba2af70ce991edc9cabbb7d341aa45c81dd
+    AccessCode: 1353D210FA
+    OneTimeCode: 1353D210FA
+    EmailSent: 2015-12-11 14:44:09
+    Page: =>AuthorizedPage.AuthPage1

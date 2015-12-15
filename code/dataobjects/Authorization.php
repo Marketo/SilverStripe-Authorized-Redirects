@@ -118,8 +118,7 @@ class Authorization extends DataObject {
 <p>Thank you,<br/>
 Marketing Developers</p>
 HTML;
-		$email = new Email(MAIL_SENDER_ADDRESS, $this->Email, 'Your Access Code for '.$this->Page()->Title, $body);
-		$email->replyTo(MAIL_REPLY_TO_ADDRESS);
+		$email = new Email('', $this->Email, 'Your Access Code for '.$this->Page()->Title, $body);
 		$email->send();
 
 		$this->EmailSent = (string)SS_Datetime::now();
@@ -128,8 +127,12 @@ HTML;
 	}
 
 	public function generateOneTime() {
-		$random = new RandomGenerator();
-		$this->OneTimeCode = substr($random->randomToken(), 0, 10);
+		$randomGen = new RandomGenerator();
+		$random = $randomGen->randomToken();
+
+		$this->extend('extendGenerateOneTime', $random);
+
+		$this->OneTimeCode = substr($random, 0, 10);
 	}
 
 	/**
@@ -247,7 +250,7 @@ HTML;
 	 * @param bool $use_cookie Default is true
 	 * @return mixed|string
 	 */
-	static public function generateClientKey($use_cookie=true) {
+	static public function generateClientKey($use_cookie = true) {
 		if ($use_cookie) {
 			if (!($client = Cookie::get('a_client'))) {
 				// Note: _mkto_trk is not always available, but that's okay! It will return null when it's not.
