@@ -241,7 +241,7 @@ class Authorization extends DataObject {
 	 */
 	static public function generateClientKey($use_cookie = true) {
 		if ($use_cookie) {
-			if (!($client = Cookie::get('a_client'))) {
+			if (!($client = Cookie::get(Config::inst()->get('Authorization', 'cookie_name')))) {
 				// Note: _mkto_trk is not always available, but that's okay! It will return null when it's not.
 				// It's not vital, but when it exists, it adds an additional level of uniqueness to the hash.
 				$client = sha1(microtime() . '|' . $_SERVER['REMOTE_ADDR'] . '|' . Cookie::get('_mkto_trk'));
@@ -249,7 +249,7 @@ class Authorization extends DataObject {
 			// Set cookie every time (even when it's already set).
 			// This allows them 14 days of pure inactivity before the token resets.
 			//@TODO improve the setting of this and add some config options for domain and security
-			Cookie::set('a_client',$client,14,'/');
+			Cookie::set(Config::inst()->get('Authorization', 'cookie_name'),$client,14,'/', Config::inst()->get('Authorization', 'cookie_domain'));
 		} else {
 			$client = sha1(
 				$_SERVER['HTTP_ACCEPT'] . '|' .
