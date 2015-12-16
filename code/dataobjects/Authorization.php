@@ -20,6 +20,7 @@ class Authorization extends DataObject {
 		'AccessCode'	=> 'Varchar',
 		'OneTimeCode'	=> 'Varchar',
 		'EmailSent'		=> 'SS_Datetime',
+		'AccessLog'		=> 'MultiValueField',
 	);
 
 	private static $has_one = array(
@@ -111,6 +112,7 @@ class Authorization extends DataObject {
 		$email->send();
 
 		$this->EmailSent = (string)SS_Datetime::now();
+		$this->logEmailSent();
 
 		return true;
 	}
@@ -248,8 +250,13 @@ class Authorization extends DataObject {
 			}
 			// Set cookie every time (even when it's already set).
 			// This allows them 14 days of pure inactivity before the token resets.
-			//@TODO improve the setting of this and add some config options for domain and security
-			Cookie::set(Config::inst()->get('Authorization', 'cookie_name'),$client,14,'/', Config::inst()->get('Authorization', 'cookie_domain'));
+			Cookie::set(
+				Config::inst()->get('Authorization', 'cookie_name'),
+				$client,
+				14,
+				'/',
+				Config::inst()->get('Authorization', 'cookie_domain')
+			);
 		} else {
 			$client = sha1(
 				$_SERVER['HTTP_ACCEPT'] . '|' .
@@ -270,6 +277,26 @@ class Authorization extends DataObject {
 
 			return 'Empty User-agent';
 		}
+	}
+
+	public function logOTC() {
+		$log = $this->AccessLog->getValue();
+		if (is_array($log)) {
+			$log[] = "OneTimeToken: $this->OneTimeCode used on: " . date(DATE_ATOM);
+		} else {
+			$log = array("OneTimeToken: $this->OneTimeCode used on: " . date(DATE_ATOM));
+		}
+		$this->AccessLog->setValue($log);
+	}
+
+	public function logEmailSent() {
+		$log = $this->AccessLog->getValue();
+		if (is_array($log)) {
+			$log[] = "EmailSent on: " . date(DATE_ATOM);
+		} else {
+			$log = array("EmailSent on: " . date(DATE_ATOM));
+		}
+		$this->AccessLog->setValue($log);
 	}
 
 }

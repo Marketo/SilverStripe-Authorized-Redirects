@@ -6,6 +6,7 @@
 
     "require": {
         "silverstripe/cms": "3.*",
+		"silverstripe/multivaluefield": "2.1.x",
         "composer/installers": "*"
     },
 

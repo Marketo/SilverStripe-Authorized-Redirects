@@ -166,12 +166,13 @@ class AuthorizedPage_Controller extends Page_Controller {
 		$return = array('valid' => false);
 		
 		if($this->request->postVar('ott')) {
-			if ($ottcheck = Authorization::get()->filter('OneTimeCode', $this->request->postVar('ott'))->last()) {
+			if ($OTCcheck = Authorization::get()->filter('OneTimeCode', $this->request->postVar('ott'))->last()) {
 				$return['valid'] = true;
+				//Log that this token has been used
+				$OTCcheck->logOTC();
 				//As this token as been found we'll remove it and write the Authorization.
-				//@TODO potentially add a log of this occur so use cna be tracked?
-				$ottcheck->OneTimeCode = null;
-				$ottcheck->write();
+				$OTCcheck->OneTimeCode = null;
+				$OTCcheck->write();
 			}
 		}
 		
