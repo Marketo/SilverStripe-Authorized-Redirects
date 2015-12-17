@@ -96,7 +96,7 @@ class AuthorizedPage_Controller extends Page_Controller {
 				} else if ($Errors & Authorization::EMAIL_NOT_ALLOWED) {
 					$this->data()->addMessage('This email address is not allowed access to this page.', 'error');
 				} else if ($Errors & Authorization::PAGE_HAS_NO_EMAIL) {
-					$this->data()->addMessage('<p>Welcome back!', 'error');
+					$this->data()->addMessage('Welcome back!', 'error');
 				} else if ($Errors & Authorization::DEVICE_WRONG) {
 					//$this->data()->addMessage($ShowErrorCode, 'error');
 					$this->data()->addMessage('Looks like you\'ve registered this email address using a different device or browser.', 'error');
