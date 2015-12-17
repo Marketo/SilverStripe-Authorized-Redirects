@@ -1,0 +1,3 @@
+Authorization:
+    cookie_name: 'auth_cookie'
+    cookie_domain: ''
