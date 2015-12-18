@@ -28,3 +28,4 @@ before_script:
 
 script: 
  - phpunit silverstripe-authorized-redirects/tests/
+ 
