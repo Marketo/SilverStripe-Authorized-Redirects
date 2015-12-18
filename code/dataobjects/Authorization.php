@@ -249,10 +249,10 @@ class Authorization extends DataObject {
 		if ($use_cookie) {
 			if (!($client = Cookie::get(Config::inst()->get('Authorization', 'cookie_name')))) {
 				//we use SS_Datetime here as it supports mocking us we can unit test here reliably
-				$dataTime = SS_Datetime::now()->Format(DATE_ATOM);
+				$dataTime = new DateTime(SS_Datetime::now()->Format(DATE_ATOM));
 				// Note: _mkto_trk is not always available, but that's okay! It will return null when it's not.
 				// It's not vital, but when it exists, it adds an additional level of uniqueness to the hash.
-				$client = sha1($dataTime . '|' . $_SERVER['REMOTE_ADDR'] . '|' . Cookie::get('_mkto_trk'));
+				$client = sha1($dataTime->getTimestamp() . '|' . $_SERVER['REMOTE_ADDR'] . '|' . Cookie::get('_mkto_trk'));
 			}
 			// Set cookie every time (even when it's already set).
 			// This allows them 14 days of pure inactivity before the token resets.

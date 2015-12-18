@@ -59,7 +59,7 @@ class AuthorizedTest extends SapphireTest {
 
 	public function testgenerateClientKey() {
 
-		$this->assertEquals('277cae6d1271352d959d823b5de46644da100562', Authorization::generateClientKey());
+		$this->assertEquals('f57fa6a129a4c369157f521724ca24bf6a8e25fc', Authorization::generateClientKey());
 	}
 
 	public function testgenerateClientInfo() {
