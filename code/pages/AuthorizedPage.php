@@ -125,9 +125,10 @@ class AuthorizedPage_Controller extends Page_Controller {
 	}
 
 	public function new_authorization() {
+		// < 5.5 compat, as empty() only supports vars
 		$postVars = $this->request->postVars();
-		$data = $this->data();
-		if (empty($postVars) || !$data) return $this->redirectBack();
+		if (empty($postVars) || !$this->data()) return $this->redirectBack();
+		unset($postVars); //clear var as we're using the method
 
 		// We will create an authorization EVEN IF the email is not allowed.
 		// This allows us to see who requested access, even if they're not allowed.
