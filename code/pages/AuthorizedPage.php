@@ -8,6 +8,7 @@ class AuthorizedPage extends Page {
 	private $Messages;
 
 	private static $db = array(
+		'FromEmailAddress' => 'Varchar(255)',
 		'AllowedEmailAddresses' => 'Text',
 		'RedirectURL' => 'Varchar(255)',
 	);
@@ -33,6 +34,10 @@ class AuthorizedPage extends Page {
 		$fields->addFieldToTab('Root.Main',
 			TextField::create('RedirectURL')
 				->setDescription('Instead of including content on the page, redirect to an external URL upon authentication.')
+		,'Content');
+
+		$fields->addFieldToTab('Root.Main',
+			TextField::create('FromEmailAddress')
 		,'Content');
 
 		return $fields;
@@ -165,9 +170,9 @@ class AuthorizedPage_Controller extends Page_Controller {
 	 * @return JSON
 	 */
 	public function validateOneTimeCode() {
-		
+
 		$return = array('valid' => false);
-		
+
 		if($this->request->postVar('ott')) {
 			if ($OTCcheck = Authorization::get()->filter('OneTimeCode', $this->request->postVar('ott'))->last()) {
 				$return['valid'] = true;
@@ -178,10 +183,10 @@ class AuthorizedPage_Controller extends Page_Controller {
 				$OTCcheck->write();
 			}
 		}
-		
+
 		return $this->renderWith('json', array('json' => json_encode($return)));
 	}
-	
+
 	/**
 	 * @return bool|Authorization
 	 */

@@ -103,7 +103,7 @@ class Authorization extends DataObject {
 		}
 
 		//@TODO Clean up the Client Info output as it's currently pretty ugly
-		$email = new Email('', $this->Email, 'Your Access Code for '.$this->Page()->Title);
+		$email = new Email($this->Page()->FromEmailAddress, $this->Email, 'Your Access Code for '.$this->Page()->Title);
 		$email->setTemplate('AuthorizationEmail')
 			->populateTemplate(array(
 				'ClientInfo' => $this->ClientInfo,
